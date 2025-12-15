@@ -16,9 +16,34 @@ app.use(cors())
 
 //Route
 app.get('/',(req,res)=>res.send("API Working"))
-app.post('/clerk',express.json(),clerkWebhooks)
+// --- Clerk Webhook Raw Body Middleware for Vercel ---
+import { Buffer } from 'buffer';
+function rawBodySaver(req, res, buf, encoding) {
+    if (buf && buf.length) {
+        req.rawBody = buf;
+    }
+}
+app.post(
+    '/clerk',
+    express.json({ verify: rawBodySaver }),
+    (req, res, next) => {
+        // If Vercel/Express has parsed JSON, use req.rawBody for svix
+        if (req.rawBody) {
+            req.bodyBufferForSvix = req.rawBody;
+        } else if (Buffer.isBuffer(req.body)) {
+            req.bodyBufferForSvix = req.body;
+        } else {
+            req.bodyBufferForSvix = Buffer.from(JSON.stringify(req.body));
+        }
+        next();
+    },
+    clerkWebhooks
+);
 //Port
 const PORT=process.env.PORT||5000
 app.listen(PORT,()=>{
     console.log(`Server is running on port ${PORT}`)
 })
+
+// Export for Vercel
+export default app 
