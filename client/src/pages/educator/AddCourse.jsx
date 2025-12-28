@@ -100,8 +100,39 @@ const addLecture = () => {
     isPreviewFree: false,
   });
 };
-const handleSubmit=async(e)=>{
-  e.preventDefault()
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  // Collect course data
+  const quillContent = quillRef.current ? quillRef.current.root.innerHTML : '';
+  const courseData = {
+    courseTitle,
+    courseDescription: quillContent,
+    coursePrice,
+    discount,
+    chapters,
+  };
+
+  const formData = new FormData();
+  formData.append('image', image); // field name must be 'image'
+  formData.append('courseData', JSON.stringify(courseData));
+
+  try {
+    const response = await fetch('http://localhost:5000/api/educator/add-course', {
+      method: 'POST',
+      body: formData,
+      // Do not set Content-Type header, browser will set it automatically for FormData
+      credentials: 'include', // if you need cookies/auth
+    });
+    const result = await response.json();
+    if (result.success) {
+      alert('Course added successfully!');
+      // Optionally reset form here
+    } else {
+      alert(result.message || 'Failed to add course');
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
 };
 
 
