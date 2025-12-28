@@ -70,130 +70,71 @@ res.json({success:false,message:error.message})
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// export const stripeWebhooks = async (req, res) => {
-//   const sig = req.headers['stripe-signature'];
-//   let event;
-//   try {
-//     event = Stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-//   } catch (err) {
-//     return res.status(400).send(`Webhook Error: ${err.message}`);
-//   }
-
-//   switch (event.type) {
-//     case 'payment_intent.succeeded': {
-//       const paymentIntent = event.data.object;
-//       const paymentIntentId = paymentIntent.id;
-
-//       const session = await stripeInstance.checkout.sessions.list({
-//         payment_intent: paymentIntentId
-//       });
-
-//       if (!session.data.length || !session.data[0].metadata) {
-//         return res.status(400).json({ success: false, message: 'Session or metadata not found' });
-//       }
-
-//       const { purchaseId } = session.data[0].metadata;
-//       const purchaseData = await Purchase.findById(purchaseId);
-//       if (!purchaseData) {
-//         return res.status(400).json({ success: false, message: 'Purchase not found' });
-//       }
-//       const userData = await User.findById(purchaseData.userId);
-//       const courseData = await Course.findById(purchaseData.courseId.toString());
-//       if (courseData && userData) {
-//         courseData.enrolledStudents.push(userData);
-//         await courseData.save();
-
-//         userData.enrolledCourses.push(courseData._id);
-//         await userData.save();
-//       }
-
-//       purchaseData.status = 'completed';
-//       await purchaseData.save();
-//       break;
-//     }
-//     case 'payment_intent.payment_failed': {
-//       const paymentIntent = event.data.object;
-//       const paymentIntentId = paymentIntent.id;
-
-//       const session = await stripeInstance.checkout.sessions.list({
-//         payment_intent: paymentIntentId
-//       });
-
-//       if (!session.data.length || !session.data[0].metadata) {
-//         return res.status(400).json({ success: false, message: 'Session or metadata not found' });
-//       }
-
-//       const { purchaseId } = session.data[0].metadata;
-//       const purchaseData = await Purchase.findById(purchaseId);
-//       if (purchaseData) {
-//         purchaseData.status = 'failed';
-//         await purchaseData.save();
-//       }
-//       break;
-//     }
-//     default:
-//       console.log(`Unhandled event type ${event.type}`);
-//   }
-
-//   res.json({ received: true });
-// };
 export const stripeWebhooks = async (req, res) => {
-  const sig = req.headers["stripe-signature"];
-
+  const sig = req.headers['stripe-signature'];
   let event;
   try {
-    event = stripeInstance.webhooks.constructEvent(
-      req.rawBody,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = Stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      const { purchaseId } = session.metadata;
+    case 'payment_intent.succeeded': {
+      const paymentIntent = event.data.object;
+      const paymentIntentId = paymentIntent.id;
 
-      const purchaseData = await Purchase.findById(purchaseId);
-      if (!purchaseData) break;
+      const session = await stripeInstance.checkout.sessions.list({
+        payment_intent: paymentIntentId
+      });
 
-      const userData = await User.findById(purchaseData.userId);
-      const courseData = await Course.findById(purchaseData.courseId);
-
-      if (userData && courseData) {
-        if (!userData.enrolledCourses.includes(courseData._id)) {
-          userData.enrolledCourses.push(courseData._id);
-          await userData.save();
-        }
-
-        if (!courseData.enrolledStudents.includes(userData._id)) {
-          courseData.enrolledStudents.push(userData._id);
-          await courseData.save();
-        }
+      if (!session.data.length || !session.data[0].metadata) {
+        return res.status(400).json({ success: false, message: 'Session or metadata not found' });
       }
 
-      purchaseData.status = "completed";
+      const { purchaseId } = session.data[0].metadata;
+      const purchaseData = await Purchase.findById(purchaseId);
+      if (!purchaseData) {
+        return res.status(400).json({ success: false, message: 'Purchase not found' });
+      }
+      const userData = await User.findById(purchaseData.userId);
+      const courseData = await Course.findById(purchaseData.courseId.toString());
+     
+        courseData.enrolledStudents.push(userData);
+        await courseData.save();
+
+        userData.enrolledCourses.push(courseData._id);
+        await userData.save();
+      
+
+      purchaseData.status = 'completed';
       await purchaseData.save();
       break;
     }
+    case 'payment_intent.payment_failed': {
+      const paymentIntent = event.data.object;
+      const paymentIntentId = paymentIntent.id;
 
-    case "checkout.session.async_payment_failed": {
-      const session = event.data.object;
-      const { purchaseId } = session.metadata;
+      const session = await stripeInstance.checkout.sessions.list({
+        payment_intent: paymentIntentId
+      });
 
-      const purchaseData = await Purchase.findById(purchaseId);
-      if (purchaseData) {
-        purchaseData.status = "failed";
-        await purchaseData.save();
+      if (!session.data.length || !session.data[0].metadata) {
+        return res.status(400).json({ success: false, message: 'Session or metadata not found' });
       }
+
+      const { purchaseId } = session.data[0].metadata;
+      const purchaseData = await Purchase.findById(purchaseId);
+    
+        purchaseData.status = 'failed';
+        await purchaseData.save();
+    
       break;
     }
-
     default:
       console.log(`Unhandled event type ${event.type}`);
   }
 
   res.json({ received: true });
 };
+

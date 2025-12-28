@@ -10,6 +10,6 @@ required:true
         required:true
     },
     amount:{type:Number,required:true},
-    status:{type:String,enum:['pending','completed','failed'],defautl:'pending'}
+    status:{type:String,enum:['pending','completed','failed'],default:'pending'}
 },{timestamps:true});
 export const Purchase=mongoose.model('Purchase',PurchaseSchema)

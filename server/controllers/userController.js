@@ -57,6 +57,7 @@ export const purchaseCourse = async (req, res) => {
         courseData.coursePrice -
         (courseData.discount * courseData.coursePrice) / 100
       ).toFixed(2),
+       status: "pending",
     };
 
     const newPurchase = await Purchase.create(purchaseData);
